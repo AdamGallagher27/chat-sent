@@ -1,4 +1,6 @@
 import flet as ft
+import pprint
+
 
 class Message():
     def __init__(self, user_name: str, text: str, message_type: str):
@@ -10,6 +12,8 @@ class ChatMessage(ft.Row):
     def __init__(self, message: Message):
         super().__init__()
         self.vertical_alignment="start"
+
+        # body of message with avatar / text
         self.controls=[
                 ft.CircleAvatar(
                     content=ft.Text(self.get_initials(message.user_name)),
@@ -19,12 +23,22 @@ class ChatMessage(ft.Row):
                 ft.Column(
                     [
                         ft.Text(message.user_name, weight="bold"),
-                        ft.Text(message.text, selectable=True),
+                        ft.TextButton(message.text, on_click=self.handle_chat_text_clicked),
                     ],
                     tight=True,
                     spacing=5,
                 ),
             ]
+    
+    
+    def handle_chat_text_clicked(row, event_properties):
+        
+        def get_text_from_message(event_properties):
+            return event_properties.control._Control__attrs['text'][0]
+    
+        message_text = get_text_from_message(event_properties)
+        print(message_text)
+
 
     def get_initials(self, user_name: str):
         if user_name:
@@ -54,6 +68,11 @@ def main(page: ft.Page):
     page.horizontal_alignment = "stretch"
     page.title = "Flet Chat"
 
+    def reset_message():
+        new_message.value = ""
+        new_message.focus()
+        page.update()
+
     def join_chat_click(e):
         if not join_user_name.value:
             join_user_name.error_text = "Name cannot be blank!"
@@ -65,14 +84,12 @@ def main(page: ft.Page):
             page.pubsub.send_all(Message(user_name=join_user_name.value, text=f"{join_user_name.value} has joined the chat.", message_type="login_message"))
             page.update()
 
-    def send_message_click(e):
+    def handle_message_button_clicked(e):
         if new_message.value != "":
             page.pubsub.send_all(Message(page.session.get("user_name"), new_message.value, message_type="chat_message"))
-            new_message.value = ""
-            new_message.focus()
-            page.update()
+            reset_message()
 
-    def on_message(message: Message):
+    def assign_message_style(message: Message):
         if message.message_type == "chat_message":
             m = ChatMessage(message)
         elif message.message_type == "login_message":
@@ -80,7 +97,7 @@ def main(page: ft.Page):
         chat.controls.append(m)
         page.update()
 
-    page.pubsub.subscribe(on_message)
+    page.pubsub.subscribe(assign_message_style)
 
     # A dialog asking for a user display name
     join_user_name = ft.TextField(
@@ -113,7 +130,7 @@ def main(page: ft.Page):
         max_lines=5,
         filled=True,
         expand=True,
-        on_submit=send_message_click,
+        on_submit=handle_message_button_clicked,
     )
 
     # Add everything to the page
@@ -131,7 +148,7 @@ def main(page: ft.Page):
                 ft.IconButton(
                     icon=ft.icons.SEND_ROUNDED,
                     tooltip="Send message",
-                    on_click=send_message_click,
+                    on_click=handle_message_button_clicked,
                 ),
             ]
         ),
